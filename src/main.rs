@@ -1,14 +1,18 @@
 extern crate sdl2;
+extern crate gl;
 
 use sdl2::{
-    rect::Rect,
-    pixels::Color,
-    pixels::PixelFormatEnum,
+    // rect::Rect,
+    // pixels::Color,
+    // pixels::PixelFormatEnum,
     event::Event,
     keyboard::Keycode
 };
 
+use gl::types::*;
+
 use std::time::Duration;
+use std::ffi::c_void;
 
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
@@ -20,39 +24,44 @@ fn main() -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-    let texture_creator = canvas.texture_creator();
+    // let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
+    // let texture_creator = canvas.texture_creator();
 
-    let mut texture = texture_creator.create_texture_streaming(PixelFormatEnum::IYUV, 256, 256)
-        .map_err(|e| e.to_string())?;
-    texture.with_lock(None, |buf, pitch| {
-        let w = 256;
-        let h = 256;
+    // let mut texture = texture_creator.create_texture_streaming(PixelFormatEnum::IYUV, 256, 256)
+    //     .map_err(|e| e.to_string())?;
+    // texture.with_lock(None, |buf, pitch| {
+    //     let w = 256;
+    //     let h = 256;
+    //
+    //     for y in 0..h {
+    //         for x in 0..w {
+    //             let offset = y*pitch + x;
+    //             buf[offset] = 128;
+    //         }
+    //     }
+    //
+    //     let y_size = pitch*h;
+    //     for y in 0..h/2 {
+    //         for x in 0..w/2 {
+    //             let u_offset = y_size + y*pitch/2 + x;
+    //             let v_offset = y_size + (pitch/2 * h/2) + y*pitch/2 + x;
+    //             buf[u_offset] = (x*2) as u8;
+    //             buf[v_offset] = (y*2) as u8;
+    //         }
+    //     }
+    // })?;
 
-        for y in 0..h {
-            for x in 0..w {
-                let offset = y*pitch + x;
-                buf[offset] = 128;
-            }
-        }
+    let _gl_context = window.gl_create_context()?;
+    gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as *const c_void);
+    video_subsystem.gl_set_swap_interval(sdl2::video::SwapInterval::VSync)?;
 
-        let y_size = pitch*h;
-        for y in 0..h/2 {
-            for x in 0..w/2 {
-                let u_offset = y_size + y*pitch/2 + x;
-                let v_offset = y_size + (pitch/2 * h/2) + y*pitch/2 + x;
-                buf[u_offset] = (x*2) as u8;
-                buf[v_offset] = (y*2) as u8;
-            }
-        }
-    })?;
+    // canvas.set_draw_color(Color::RGB(255, 255, 255));
+    // canvas.clear();
+    // canvas.present();
 
-    canvas.set_draw_color(Color::RGB(255, 255, 255));
-    canvas.clear();
-    canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
 
-    let mut frame = 0.0f64;
+    // let mut frame = 0.0f64;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -63,15 +72,23 @@ fn main() -> Result<(), String> {
             }
         }
 
-        canvas.clear();
+        // canvas.clear();
+        //
+        // if frame >= 360.0f64 { frame = 0.0f64; }
+        // frame += 1.0f64;
+        // canvas.copy_ex(&texture, None,
+        //                Some(Rect::new(200, 200, 256, 256)),
+        //                frame, None, false, false)?;
+        //
+        // canvas.present();
 
-        if frame >= 360.0f64 { frame = 0.0f64; }
-        frame += 1.0f64;
-        canvas.copy_ex(&texture, None,
-                       Some(Rect::new(200, 200, 256, 256)),
-                       frame, None, false, false)?;
+        unsafe {
+            gl::ClearColor(1.0, 1.0, 1.0, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
 
-        canvas.present();
+        window.gl_swap_window();
+
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
     }
     Ok(())
