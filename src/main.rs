@@ -8,6 +8,8 @@ use sdl2::{
     keyboard::Keycode
 };
 
+use std::time::Duration;
+
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -21,20 +23,31 @@ fn main() -> Result<(), String> {
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
     let texture_creator = canvas.texture_creator();
 
-    let mut texture = texture_creator.create_texture_streaming(PixelFormatEnum::RGB24, 256, 256)
+    let mut texture = texture_creator.create_texture_streaming(PixelFormatEnum::IYUV, 256, 256)
         .map_err(|e| e.to_string())?;
     texture.with_lock(None, |buf, pitch| {
-        for y in 0..256 {
-            for x in 0..256 {
-                let offset = y*pitch + x*3;
-                buf[offset] = x as u8;
-                buf[offset+1] = y as u8;
-                buf[offset+2] = 0;
+        let w = 256;
+        let h = 256;
+
+        for y in 0..h {
+            for x in 0..w {
+                let offset = y*pitch + x;
+                buf[offset] = 128;
+            }
+        }
+
+        let y_size = pitch*h;
+        for y in 0..h/2 {
+            for x in 0..w/2 {
+                let u_offset = y_size + y*pitch/2 + x;
+                let v_offset = y_size + (pitch/2 * h/2) + y*pitch/2 + x;
+                buf[u_offset] = (x*2) as u8;
+                buf[v_offset] = (y*2) as u8;
             }
         }
     })?;
 
-    canvas.set_draw_color(Color::RGB(0, 0, 0));
+    canvas.set_draw_color(Color::RGB(255, 255, 255));
     canvas.clear();
     canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
@@ -52,13 +65,14 @@ fn main() -> Result<(), String> {
 
         canvas.clear();
 
+        if frame >= 360.0f64 { frame = 0.0f64; }
         frame += 1.0f64;
         canvas.copy_ex(&texture, None,
                        Some(Rect::new(200, 200, 256, 256)),
                        frame, None, false, false)?;
 
         canvas.present();
+        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
     }
-
     Ok(())
 }
