@@ -56,13 +56,8 @@ fn main() -> Result<(), String> {
     canvas.present();
     let mut event_pump = sdl_context.event_pump()?;
 
-    let projection = ext::perspective(ext::consts::quarter_pi(), 4.0 / 3.0, 0.1, 100.0);
-    let view = ext::look_at(
-        Vector3::new(4., 3., 3.),
-        Vector3::new(0., 0., 0.),
-        Vector3::new(0., 1., 0.)
-    );
-    let mut model = Matrix4::new(
+    let projection = ext::perspective(ext::consts::quarter_pi(), 1.0, 0.1, 100.0);
+    let model = Matrix4::new(
         Vector4::new(1., 0., 0., 0.),
         Vector4::new(0., 1., 0., 0.),
         Vector4::new(0., 0., 1., 0.),
@@ -81,12 +76,47 @@ fn main() -> Result<(), String> {
     ];
 
     let mut frame = 0.0f64;
+    let mut x_diff = 0;
+    let mut y_diff = 0;
+    let mut x_prev = 0;
+    let mut y_prev = 0;
+    let mut theta_diff = 0;
+    let mut phi_diff = 0;
+    let mut theta_prev = 0;
+    let mut phi_prev = 0;
+    let mut scale = 1.0;
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running
                 },
+                Event::MouseButtonDown {x, y, ..} => {
+                    x_prev = x;
+                    y_prev = y;
+                    theta_prev = x;
+                    phi_prev = y;
+                },
+                Event::MouseMotion {x, y, mousestate, ..} => {
+                    if mousestate.left() {
+                        x_diff += x - x_prev;
+                        y_diff += y - y_prev;
+                        x_prev = x;
+                        y_prev = y;
+                    } else if mousestate.right() {
+                        theta_diff += x - theta_prev;
+                        phi_diff += y - phi_prev;
+                        theta_prev = x;
+                        phi_prev = y;
+                    }
+                },
+                Event::MouseWheel {y, ..} => {
+                    if y > 0 {
+                        scale += 0.05;
+                    } else if y < 0 {
+                        scale -= 0.05;
+                    }
+                }
                 _ => {}
             }
         }
@@ -100,11 +130,20 @@ fn main() -> Result<(), String> {
                        Some(Rect::new(400, 400, 64, 64)),
                        frame, None, false, false)?;
 
-        model = ext::rotate(&model, 0.01, Vector3::new(0.3, 0.4, 0.5));
+        let view = ext::look_at(
+            Vector3::new(
+                3. * cos(theta_diff as f64 / 360.) * cos(phi_diff as f64 / 360.),
+                3. * sin(theta_diff as f64 / 360.) * cos(phi_diff as f64 / 360.),
+                3. * sin(phi_diff as f64 / 360.)
+            ),
+            Vector3::new(0.5, 0.5, 0.5),
+            Vector3::new(0., 0., 1.)
+        );
         let mvp = projection * view * model;
         let points_render = points.iter().map(|&x| {
             let y = mvp * x;
-            Point::new((200. * y.x/y.z) as i32, (200. * y.y/y.z) as i32) + Point::new(200, 300)
+            Point::new((200. * scale * y.x / y.w) as i32, (200. * scale * y.y / y.w) as i32)
+                + Point::new(x_diff, y_diff)
         }).collect::<Vec<_>>();
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
